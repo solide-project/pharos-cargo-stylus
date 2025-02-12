@@ -64,7 +64,7 @@ pub async fn deploy(cfg: DeployConfig) -> Result<()> {
             sender.red(),
             balance.red(),
             format!("{data_fee} wei").red(),
-            "https://docs.arbitrum.io/stylus/stylus-quickstart".yellow(),
+            "https://docs.pharosnetwork.xyz/developer-guides".yellow(),
         );
     }
 

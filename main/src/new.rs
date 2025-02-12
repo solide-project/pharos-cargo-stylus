@@ -1,7 +1,7 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
-use crate::constants::{GITHUB_TEMPLATE_REPO, GITHUB_TEMPLATE_REPO_MINIMAL};
+use crate::constants::GITHUB_TEMPLATE_REPO;
 use crate::util::{
     color::{Color, GREY},
     sys,
@@ -10,21 +10,16 @@ use eyre::{bail, Context, Result};
 use std::{env, fs, path::Path};
 
 /// Creates a new directory given the path and then initialize a stylus project.
-pub fn new(path: &Path, minimal: bool) -> Result<()> {
+pub fn new(path: &Path) -> Result<()> {
     fs::create_dir_all(path).wrap_err("failed to create project dir")?;
     env::set_current_dir(path).wrap_err("failed to set project dir")?;
-    init(minimal)
+    init()
 }
 
 /// Creates a new Stylus project in the current directory.
-pub fn init(minimal: bool) -> Result<()> {
+pub fn init() -> Result<()> {
     let current_dir = env::current_dir().wrap_err("no current dir")?;
-    let repo = if minimal {
-        GITHUB_TEMPLATE_REPO_MINIMAL
-    } else {
-        GITHUB_TEMPLATE_REPO
-    };
-
+    let repo = GITHUB_TEMPLATE_REPO;
     let output = sys::new_command("git")
         .arg("clone")
         .arg("--depth")

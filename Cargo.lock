@@ -1079,13 +1079,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo-stylus-example"
-version = "0.5.8"
-dependencies = [
- "clap",
-]
-
-[[package]]
 name = "cargo_metadata"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

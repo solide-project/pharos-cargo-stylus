@@ -37,7 +37,7 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     }
 
     Ok(ContractCheck::Ready {
-        code,
+        code: wasm_file_bytes,
         fee: U256::from(0_u32),
     })
 }

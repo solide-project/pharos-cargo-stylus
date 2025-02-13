@@ -3,9 +3,7 @@
 
 #![allow(clippy::println_empty_string)]
 use crate::{
-    check::{self, ContractCheck},
-    constants::ARB_WASM_H160,
-    export_abi,
+    check, export_abi,
     macros::*,
     util::{
         color::{Color, DebugColor},
@@ -13,9 +11,6 @@ use crate::{
     },
     DeployConfig,
 };
-use alloy_primitives::{Address, U256 as AU256};
-use alloy_sol_macro::sol;
-use alloy_sol_types::SolCall;
 use ethers::core::utils::format_units;
 use ethers::{
     core::k256::ecdsa::SigningKey,
@@ -27,17 +22,6 @@ use ethers::{
 };
 use eyre::{bail, eyre, Result, WrapErr};
 
-mod deployer;
-
-sol! {
-    interface ArbWasm {
-        function activateProgram(address program)
-            external
-            payable
-            returns (uint16 version, uint256 dataFee);
-    }
-}
-
 pub type SignerClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 
 /// Deploys a stylus contract, activating if needed.
@@ -47,10 +31,8 @@ pub async fn deploy(cfg: DeployConfig) -> Result<()> {
         .expect("cargo stylus check failed");
     let verbose = cfg.check_config.common_cfg.verbose;
 
-    let constructor = export_abi::get_constructor_signature()?;
-    let deployer_args = constructor
-        .map(|constructor| deployer::parse_constructor_args(&cfg, &constructor, &contract))
-        .transpose()?;
+    // Pharos call `deploy` function on the contract, do not call `constructor` through the system contract.
+    let _constructor = export_abi::get_constructor_signature()?;
 
     let client = sys::new_provider(&cfg.check_config.common_cfg.endpoint)?;
     let chain_id = client.get_chainid().await.expect("failed to get chain id");
@@ -67,29 +49,23 @@ pub async fn deploy(cfg: DeployConfig) -> Result<()> {
     let data_fee = contract.suggest_fee()
         + alloy_ethers_typecast::ethers_u256_to_alloy(cfg.experimental_constructor_value);
 
-    if let ContractCheck::Ready { .. } = &contract {
-        // check balance early
-        let balance = client
-            .get_balance(sender, None)
-            .await
-            .expect("failed to get balance");
-        let balance = alloy_ethers_typecast::ethers_u256_to_alloy(balance);
+    // Check balance early
+    let balance = client
+        .get_balance(sender, None)
+        .await
+        .expect("failed to get balance");
+    let balance = alloy_ethers_typecast::ethers_u256_to_alloy(balance);
 
-        if balance < data_fee && !cfg.estimate_gas {
-            bail!(
-                "not enough funds in account {} to pay for data fee\n\
-                 balance {} < {}\n\
-                 please see the Quickstart guide for funding new accounts:\n{}",
-                sender.red(),
-                balance.red(),
-                format!("{data_fee} wei").red(),
-                "https://docs.arbitrum.io/stylus/stylus-quickstart".yellow(),
-            );
-        }
-    }
-
-    if let Some(deployer_args) = deployer_args {
-        return deployer::deploy(&cfg, deployer_args, sender, &client).await;
+    if balance < data_fee && !cfg.estimate_gas {
+        bail!(
+            "not enough funds in account {} to pay for data fee\n\
+             balance {} < {}\n\
+             please see the Quickstart guide for funding new accounts:\n{}",
+            sender.red(),
+            balance.red(),
+            format!("{data_fee} wei").red(),
+            "https://docs.pharosnetwork.xyz/developer-guides".yellow(),
+        );
     }
 
     let contract_addr = cfg
@@ -100,22 +76,7 @@ pub async fn deploy(cfg: DeployConfig) -> Result<()> {
         return Ok(());
     }
 
-    match contract {
-        ContractCheck::Ready { .. } => {
-            if cfg.no_activate {
-                mintln!(
-                    r#"NOTE: You must activate the stylus contract before calling it. To do so, we recommend running:
-cargo stylus activate --address {}"#,
-                    hex::encode(contract_addr)
-                );
-            } else {
-                cfg.activate(sender, contract_addr, data_fee, &client)
-                    .await?
-            }
-        }
-        ContractCheck::Active { .. } => greyln!("wasm already activated!"),
-    }
-    print_cache_notice(contract_addr);
+    mintln!(r#"Contract Address: {}"#, hex::encode(contract_addr));
     Ok(())
 }
 
@@ -170,58 +131,6 @@ impl DeployConfig {
         greyln!("deployment tx hash: {tx_hash}");
         Ok(contract)
     }
-
-    async fn activate(
-        &self,
-        sender: H160,
-        contract: H160,
-        data_fee: AU256,
-        client: &SignerClient,
-    ) -> Result<()> {
-        let verbose = self.check_config.common_cfg.verbose;
-        let data_fee = alloy_ethers_typecast::alloy_u256_to_ethers(data_fee);
-        let contract_addr: Address = contract.to_fixed_bytes().into();
-
-        let data = ArbWasm::activateProgramCall {
-            program: contract_addr,
-        }
-        .abi_encode();
-
-        let tx = Eip1559TransactionRequest::new()
-            .from(sender)
-            .to(*ARB_WASM_H160)
-            .data(data)
-            .value(data_fee);
-
-        let gas = client
-            .estimate_gas(&TypedTransaction::Eip1559(tx.clone()), None)
-            .await
-            .map_err(|e| eyre!("did not estimate correctly: {e}"))?;
-
-        if self.check_config.common_cfg.verbose || self.estimate_gas {
-            greyln!("activation gas estimate: {}", format_gas(gas));
-        }
-
-        let receipt = run_tx(
-            "activate",
-            tx,
-            Some(gas),
-            self.check_config.common_cfg.max_fee_per_gas_gwei,
-            client,
-            self.check_config.common_cfg.verbose,
-        )
-        .await?;
-
-        if verbose {
-            let gas = format_gas(receipt.gas_used.unwrap_or_default());
-            greyln!("activated with {gas}");
-        }
-        greyln!(
-            "contract activated and ready onchain with tx hash: {}",
-            receipt.transaction_hash.debug_lavender()
-        );
-        Ok(())
-    }
 }
 
 pub async fn print_gas_estimate(name: &str, client: &SignerClient, gas: U256) -> Result<()> {
@@ -240,16 +149,6 @@ pub async fn print_gas_estimate(name: &str, client: &SignerClient, gas: U256) ->
         eth_estimate.debug_lavender()
     );
     Ok(())
-}
-
-pub fn print_cache_notice(contract_addr: H160) {
-    let contract_addr = hex::encode(contract_addr);
-    println!("");
-    mintln!(
-        r#"NOTE: We recommend running cargo stylus cache bid {contract_addr} 0 to cache your activated contract in ArbOS.
-Cached contracts benefit from cheaper calls. To read more about the Stylus contract cache, see
-https://docs.arbitrum.io/stylus/concepts/stylus-cache-manager"#
-    );
 }
 
 pub async fn run_tx(

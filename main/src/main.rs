@@ -26,8 +26,6 @@ use std::{env, os::unix::process::CommandExt};
 #[cfg(windows)]
 use std::env;
 
-mod activate;
-mod cache;
 mod check;
 mod constants;
 mod deploy;
@@ -61,16 +59,9 @@ enum Apis {
     New {
         /// Project name.
         name: PathBuf,
-        /// Create a minimal contract.
-        #[arg(long)]
-        minimal: bool,
     },
     /// Initializes a Stylus project in the current directory.
-    Init {
-        /// Create a minimal contract.
-        #[arg(long)]
-        minimal: bool,
-    },
+    Init {},
     /// Export a Solidity ABI.
     ExportAbi {
         /// The output file (defaults to stdout).
@@ -80,12 +71,6 @@ enum Apis {
         #[arg(long)]
         json: bool,
     },
-    /// Activate an already deployed contract.
-    #[command(visible_alias = "a")]
-    Activate(ActivateConfig),
-    #[command(subcommand)]
-    /// Cache a contract using the Stylus CacheManager for Arbitrum chains.
-    Cache(Cache),
     /// Check a contract.
     #[command(visible_alias = "c")]
     Check(CheckConfig),
@@ -232,12 +217,6 @@ struct DeployConfig {
     /// If not set, uses the default version of the local cargo stylus binary.
     #[arg(long)]
     cargo_stylus_version: Option<String>,
-    /// If set, do not activate the program after deploying it
-    #[arg(long)]
-    no_activate: bool,
-    /// The address of the deployer contract that deploys, activates, and initializes the stylus constructor.
-    #[arg(long, value_name = "DEPLOYER_ADDRESS")]
-    experimental_deployer_address: Option<H160>,
     /// The salt passed to the stylus deployer.
     #[arg(long, default_value_t = B256::ZERO)]
     experimental_deployer_salt: B256,
@@ -543,20 +522,14 @@ async fn main_impl(args: Opts) -> Result<()> {
     }
 
     match args.command {
-        Apis::New { name, minimal } => {
-            run!(new::new(&name, minimal), "failed to open new project");
+        Apis::New { name } => {
+            run!(new::new(&name), "failed to open new project");
         }
-        Apis::Init { minimal } => {
-            run!(new::init(minimal), "failed to initialize project");
+        Apis::Init {} => {
+            run!(new::init(), "failed to initialize project");
         }
         Apis::ExportAbi { json, output } => {
             run!(export_abi::export_abi(output, json), "failed to export abi");
-        }
-        Apis::Activate(config) => {
-            run!(
-                activate::activate_contract(&config).await,
-                "stylus activate failed"
-            );
         }
         Apis::Simulate(args) => {
             run!(simulate(args).await, "failed to simulate transaction");
@@ -566,26 +539,6 @@ async fn main_impl(args: Opts) -> Result<()> {
         }
         Apis::Trace(args) => run!(trace(args).await, "failed to trace tx"),
         Apis::Replay(args) => run!(replay(args).await, "failed to replay tx"),
-        Apis::Cache(subcommand) => match subcommand {
-            Cache::Bid(config) => {
-                run!(
-                    cache::place_bid(&config).await,
-                    "stylus cache place bid failed"
-                );
-            }
-            Cache::SuggestBid(config) => {
-                run!(
-                    cache::suggest_bid(&config).await,
-                    "stylus cache suggest-bid failed"
-                );
-            }
-            Cache::Status(config) => {
-                run!(
-                    cache::check_status(&config).await,
-                    "stylus cache status failed"
-                );
-            }
-        },
         Apis::Check(config) => {
             run!(check::check(&config).await, "stylus checks failed");
         }

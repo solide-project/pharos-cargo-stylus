@@ -4,8 +4,7 @@
 use crate::util::{color::Color, sys};
 use crate::{
     constants::{
-        BROTLI_COMPRESSION_LEVEL, EOF_PREFIX_NO_DICT, PROJECT_HASH_SECTION_NAME, RUST_TARGET,
-        TOOLCHAIN_FILE_NAME,
+        BROTLI_COMPRESSION_LEVEL, PROJECT_HASH_SECTION_NAME, RUST_TARGET, TOOLCHAIN_FILE_NAME,
     },
     macros::*,
 };
@@ -163,7 +162,7 @@ fn all_paths(root_dir: &Path, source_file_patterns: Vec<String>) -> Result<Vec<P
                     continue; // Skip "target" and ".git" directories
                 }
                 directories.push(path);
-            } else if path.file_name().map_or(false, |f| {
+            } else if path.file_name().is_some_and(|f| {
                 // If the user has has specified a list of source file patterns, check if the file
                 // matches the pattern.
                 if !glob_paths.is_empty() {
@@ -381,10 +380,7 @@ pub fn compress_wasm(wasm: &PathBuf, project_hash: [u8; 32]) -> Result<(Vec<u8>,
         .read_to_end(&mut compressed_bytes)
         .wrap_err("failed to compress WASM bytes")?;
 
-    let mut contract_code = hex::decode(EOF_PREFIX_NO_DICT).unwrap();
-    contract_code.extend(compressed_bytes);
-
-    Ok((wasm.to_vec(), contract_code))
+    Ok((wasm.to_vec(), compressed_bytes))
 }
 
 // Adds the hash of the project's source files to the wasm as a custom section
@@ -479,7 +475,7 @@ mod test {
             targets = [ "wasm32-unknown-unknown", "thumbv2-none-eabi" ]
             profile = "minimal"
         "#;
-        fs::write(&toolchain_file_path, toolchain_contents)?;
+        fs::write(toolchain_file_path, toolchain_contents)?;
         Ok(())
     }
 

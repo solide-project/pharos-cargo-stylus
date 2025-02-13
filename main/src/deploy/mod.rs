@@ -68,15 +68,13 @@ pub async fn deploy(cfg: DeployConfig) -> Result<()> {
         );
     }
 
-    let contract_addr = cfg
-        .deploy_contract(contract.code(), sender, &client)
+    cfg.deploy_contract(contract.code(), sender, &client)
         .await?;
 
     if cfg.estimate_gas {
         return Ok(());
     }
 
-    mintln!(r#"Contract Address: {}"#, hex::encode(contract_addr));
     Ok(())
 }
 

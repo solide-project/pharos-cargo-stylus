@@ -29,7 +29,6 @@ use std::env;
 mod check;
 mod constants;
 mod deploy;
-mod docker;
 mod export_abi;
 mod gen;
 mod hostio;
@@ -209,10 +208,6 @@ struct DeployConfig {
     /// Only perform gas estimation.
     #[arg(long)]
     estimate_gas: bool,
-    /// If specified, will not run the command in a reproducible docker container. Useful for local
-    /// builds, but at the risk of not having a reproducible contract for verification purposes.
-    #[arg(long)]
-    no_verify: bool,
     /// Cargo stylus version when deploying reproducibly to downloads the corresponding cargo-stylus-base Docker image.
     /// If not set, uses the default version of the local cargo stylus binary.
     #[arg(long)]
@@ -241,9 +236,6 @@ pub struct VerifyConfig {
     #[arg(long)]
     deployment_tx: String,
     #[arg(long)]
-    /// If specified, will not run the command in a reproducible docker container. Useful for local
-    /// builds, but at the risk of not having a reproducible contract for verification purposes.
-    no_verify: bool,
     /// Cargo stylus version when deploying reproducibly to downloads the corresponding cargo-stylus-base Docker image.
     /// If not set, uses the default version of the local cargo stylus binary.
     #[arg(long)]
@@ -396,17 +388,13 @@ impl fmt::Display for DeployConfig {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} {} {} {}",
+            "{} {} {}",
             self.check_config,
             self.auth,
             match self.estimate_gas {
                 true => "--estimate-gas".to_string(),
                 false => "".to_string(),
             },
-            match self.no_verify {
-                true => "--no-verify".to_string(),
-                false => "".to_string(),
-            }
         )
     }
 }
@@ -440,13 +428,8 @@ impl fmt::Display for VerifyConfig {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} --deployment-tx={} {}",
-            self.common_cfg,
-            self.deployment_tx,
-            match self.no_verify {
-                true => "--no-verify".to_string(),
-                false => "".to_string(),
-            }
+            "{} --deployment-tx={}",
+            self.common_cfg, self.deployment_tx,
         )
     }
 }
@@ -543,49 +526,10 @@ async fn main_impl(args: Opts) -> Result<()> {
             run!(check::check(&config).await, "stylus checks failed");
         }
         Apis::Deploy(config) => {
-            if config.no_verify {
-                run!(deploy::deploy(config).await, "stylus deploy failed");
-            } else {
-                println!(
-                    "Running in a Docker container for reproducibility, this may take a while",
-                );
-                println!("NOTE: You can opt out by doing --no-verify");
-                let mut commands: Vec<String> =
-                    vec![String::from("deploy"), String::from("--no-verify")];
-                let config_args = config
-                    .to_string()
-                    .split(' ')
-                    .map(|s| s.to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<String>>();
-                commands.extend(config_args);
-                run!(
-                    docker::run_reproducible(config.cargo_stylus_version, &commands),
-                    "failed reproducible run"
-                );
-            }
+            run!(deploy::deploy(config).await, "stylus deploy failed");
         }
         Apis::Verify(config) => {
-            if config.no_verify {
-                run!(verify::verify(config).await, "failed to verify");
-            } else {
-                println!(
-                    "Running in a Docker container for reproducibility, this may take a while",
-                );
-                let mut commands: Vec<String> =
-                    vec![String::from("verify"), String::from("--no-verify")];
-                let config_args = config
-                    .to_string()
-                    .split(' ')
-                    .map(|s| s.to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<String>>();
-                commands.extend(config_args);
-                run!(
-                    docker::run_reproducible(config.cargo_stylus_version, &commands),
-                    "failed reproducible run"
-                );
-            }
+            run!(verify::verify(config).await, "failed to verify");
         }
     }
     Ok(())

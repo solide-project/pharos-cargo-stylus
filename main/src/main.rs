@@ -43,8 +43,8 @@ mod wallet;
 #[derive(Parser, Debug)]
 #[command(name = "stylus")]
 #[command(bin_name = "cargo stylus")]
-#[command(author = "Offchain Labs, Inc.")]
-#[command(about = "Cargo subcommand for developing Stylus projects", long_about = None)]
+#[command(author = "Offchain Labs, Inc. and Pharos Network Team")]
+#[command(about = "Cargo subcommand for developing Pharos Stylus projects", long_about = None)]
 #[command(propagate_version = true)]
 #[command(version)]
 struct Opts {

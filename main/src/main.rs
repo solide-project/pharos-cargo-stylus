@@ -6,7 +6,6 @@
 
 use alloy_primitives::{TxHash, B256};
 use clap::{ArgGroup, Args, CommandFactory, Parser, Subcommand};
-use constants::DEFAULT_ENDPOINT;
 use ethers::abi::Bytes;
 use ethers::types::{H160, U256};
 use eyre::{bail, eyre, Context, Result};
@@ -95,7 +94,7 @@ enum Apis {
 #[derive(Args, Clone, Debug)]
 struct CommonConfig {
     /// Arbitrum RPC endpoint.
-    #[arg(short, long, default_value = DEFAULT_ENDPOINT)]
+    #[arg(short, long)]
     endpoint: String,
     /// Whether to print debug info.
     #[arg(long)]
@@ -131,7 +130,7 @@ enum Cache {
 #[derive(Args, Clone, Debug)]
 pub struct CacheBidConfig {
     /// Arbitrum RPC endpoint.
-    #[arg(short, long, default_value = DEFAULT_ENDPOINT)]
+    #[arg(short, long)]
     endpoint: String,
     /// Whether to print debug info.
     #[arg(long)]
@@ -151,7 +150,7 @@ pub struct CacheBidConfig {
 #[derive(Args, Clone, Debug)]
 pub struct CacheStatusConfig {
     /// Arbitrum RPC endpoint.
-    #[arg(short, long, default_value = DEFAULT_ENDPOINT)]
+    #[arg(short, long)]
     endpoint: String,
     /// Stylus contract address to check status in the cache manager.
     #[arg(long)]
@@ -161,7 +160,7 @@ pub struct CacheStatusConfig {
 #[derive(Args, Clone, Debug)]
 pub struct CacheSuggestionsConfig {
     /// Arbitrum RPC endpoint.
-    #[arg(short, long, default_value = DEFAULT_ENDPOINT)]
+    #[arg(short, long)]
     endpoint: String,
     /// Stylus contract address to suggest a minimum bid for in the cache manager.
     address: H160,

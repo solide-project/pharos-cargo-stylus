@@ -16,6 +16,3 @@ pub const PROJECT_HASH_SECTION_NAME: &str = "project_hash";
 
 /// Name of the toolchain file used to specify the Rust toolchain version for a project.
 pub const TOOLCHAIN_FILE_NAME: &str = "rust-toolchain.toml";
-
-/// The default endpoint for connections to a Pharos devnet node.
-pub const DEFAULT_ENDPOINT: &str = "https://devnet.dplabs-internal.com";

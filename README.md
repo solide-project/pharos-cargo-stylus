@@ -15,48 +15,45 @@ A cargo subcommand for building, verifying, and deploying Arbitrum Stylus WASM c
 
 Install [Rust](https://www.rust-lang.org/tools/install), and then install the plugin using the Cargo tool:
 
-```
-cargo install cargo-stylus
+```shell
+cargo install --git https://github.com/PharosNetwork/pharos-cargo-stylus
 ```
 
 Add the `wasm32-unknown-unknown` build target to your Rust compiler:
 
-```
+```shell
 rustup target add wasm32-unknown-unknown
 ```
 
 You should now have it available as a Cargo subcommand:
 
-```
+```shell
 cargo stylus --help
 
-Cargo command for developing Arbitrum Stylus projects
+Cargo command for developing Pharos Stylus projects
 ```
 
 ### Building the Project Locally
+
 Install [Rust](https://www.rust-lang.org/tools/install)
 
 Clone the latest [released version](https://github.com/OffchainLabs/cargo-stylus/releases) to your local device.
-```
-git clone --branch [VERSION_TAG] https://github.com/OffchainLabs/cargo-stylus.git
-cd cargo-stylus
+
+```shell
+git clone --branch [VERSION_TAG] https://github.com/PharosNetwork/pharos-cargo-stylus
+cd pharos-cargo-stylus
 ```
 
-Run the `install.sh` script to build and install the local binaries to cargo
-```
-./install.sh
+Run the following script to build and install the local binaries to cargo
+
+```shell
+cargo build -r
 ```
 
 Add the `wasm32-unknown-unknown` build target to your Rust compiler:
-```
+
+```shell
 rustup target add wasm32-unknown-unknown
-```
-
-When testing changes to your local repository, ensure that commands such as `cargo stylus deploy` are run with the `--no-verify` flag to opt out of using Docker
-
-If your changes are localized to a single package, you can avoid building and reinstalling all packages by running
-```
-cargo install --path <workspace_pkg_with_changes>
 ```
 
 ### Overview
@@ -76,7 +73,6 @@ You can also use `cargo stylus new --minimal <YOUR_PROJECT_NAME>` to create a mo
 ### Testnet Information
 
 All testnet information, including faucets and RPC endpoints can be found [here](https://docs.arbitrum.io/stylus/reference/testnet-information).
-
 
 ### Developing With Stylus
 

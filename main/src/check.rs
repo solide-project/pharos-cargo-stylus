@@ -8,6 +8,11 @@ use crate::{
     util::color::Color,
     CheckConfig,
 };
+use ethers::{
+    types::{
+        U256 as EU256,
+    },
+};
 use alloy_primitives::U256;
 use bytesize::ByteSize;
 use eyre::{eyre, ErrReport, Result, WrapErr};
@@ -26,11 +31,19 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     let (wasm_file_bytes, code) =
         project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
 
-    greyln!("contract size: {}", format_file_size(code.len(), 16, 24));
+    greyln!("CONTRACT_SIZE: {}", format_file_size(code.len(), 16, 24));
+
+    let init_code = contract_deployment_calldata(&code);
+    let deploy_code: String = init_code
+        .iter()
+        .map(|byte| format!("{:02x}", byte))
+        .collect();
+
+    println!("DEPLOYMENT_CODE: {}", deploy_code);
 
     if verbose {
         greyln!(
-            "wasm size: {}",
+            "WASM_SIZE: {}",
             format_file_size(wasm_file_bytes.len(), 96, 128)
         );
         greyln!("connecting to RPC: {}", &cfg.common_cfg.endpoint.lavender());
@@ -102,4 +115,24 @@ impl From<EthCallError> for ErrReport {
     fn from(value: EthCallError) -> Self {
         eyre!(value.msg)
     }
+}
+
+pub fn contract_deployment_calldata(code: &[u8]) -> Vec<u8> {
+    let mut code_len = [0u8; 32];
+    EU256::from(code.len()).to_big_endian(&mut code_len);
+    let mut deploy: Vec<u8> = vec![];
+    deploy.push(0x7f); // PUSH32
+    deploy.extend(code_len);
+    deploy.push(0x80); // DUP1
+    deploy.push(0x60); // PUSH1
+    deploy.push(42 + 1); // prelude + version
+    deploy.push(0x60); // PUSH1
+    deploy.push(0x00);
+    deploy.push(0x39); // CODECOPY
+    deploy.push(0x60); // PUSH1
+    deploy.push(0x00);
+    deploy.push(0xf3); // RETURN
+    deploy.push(0x00); // version
+    deploy.extend(code);
+    deploy
 }

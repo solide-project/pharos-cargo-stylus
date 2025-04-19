@@ -132,14 +132,8 @@ pub fn build_dylib(cfg: BuildConfig) -> Result<PathBuf> {
     let (wasm, code) =
         compress_wasm(&wasm_file_path, [0u8; 32]).wrap_err("failed to compress WASM")?;
 
-    greyln!(
-        "contract size: {}",
-        crate::check::format_file_size(code.len(), 16, 24)
-    );
-    greyln!(
-        "wasm size: {}",
-        crate::check::format_file_size(wasm.len(), 96, 128)
-    );
+    println!("CONTRACT_SIZE: {}", code.len());
+    println!("WASM_SIZE: {}", wasm.len());
     Ok(wasm_file_path)
 }
 

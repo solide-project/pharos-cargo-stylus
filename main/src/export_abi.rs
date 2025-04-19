@@ -18,13 +18,30 @@ pub fn export_abi(file: Option<PathBuf>, json: bool) -> Result<()> {
         bail!("solc not found. Please see\n{link}");
     }
 
-    let mut output = run_export("abi")?;
+    let target = format!("--target={}", sys::host_arch()?);
+    let mut output = Command::new("cargo")
+        .stderr(Stdio::inherit())
+        .arg("run")
+        .arg("--release")
+        .arg("--features=export-abi")
+        .arg(target)
+        .output()?;
 
+    if !output.status.success() {
+        let out = String::from_utf8_lossy(&output.stdout);
+        let out = (out != "")
+            .then_some(format!(": {out}"))
+            .unwrap_or_default();
+        egreyln!("failed to run contract {out}");
+        process::exit(1);
+    }
+    
     // convert the ABI to a JSON file via solc
     if json {
         let solc = Command::new("solc")
             .stdin(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::null())
+            // .stderr(Stdio::inherit())
             .stdout(Stdio::piped())
             .arg("--abi")
             .arg("-")
@@ -32,12 +49,21 @@ pub fn export_abi(file: Option<PathBuf>, json: bool) -> Result<()> {
             .wrap_err("failed to run solc")?;
 
         let mut stdin = solc.stdin.as_ref().unwrap();
-        stdin.write_all(&output)?;
-        output = solc.wait_with_output()?.stdout;
+        stdin.write_all(&output.stdout)?;
+        output = solc.wait_with_output()?;
     }
 
+    // let mut out = sys::file_or_stdout(file)?;
+    // out.write_all(&output)?;
     let mut out = sys::file_or_stdout(file)?;
-    out.write_all(&output)?;
+    if !output.status.success() {
+        // If stderr has content, suppress and write "[]"
+        out.write_all(b"[]\n")?;
+    } else {
+        // If no error, write the actual output (stdout)
+        out.write_all(&output.stdout)?;
+    }
+    
     Ok(())
 }
 

@@ -7,6 +7,7 @@ use crate::{
     project::{self, extract_toolchain_channel, BuildConfig},
     util::color::Color,
     CheckConfig,
+    export_abi::{self},
 };
 use ethers::{
     types::{
@@ -28,10 +29,12 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
         greyln!("reading wasm file at {}", wasm.to_string_lossy().lavender());
     }
 
+    if let Err(e) = export_abi::export_abi(None, true) {
+        eprintln!("Error: {:?}", e);
+    }
+
     let (wasm_file_bytes, code) =
         project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
-
-    greyln!("CONTRACT_SIZE: {}", format_file_size(code.len(), 16, 24));
 
     let init_code = contract_deployment_calldata(&code);
     let deploy_code: String = init_code
@@ -42,10 +45,6 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     println!("DEPLOYMENT_CODE: {}", deploy_code);
 
     if verbose {
-        greyln!(
-            "WASM_SIZE: {}",
-            format_file_size(wasm_file_bytes.len(), 96, 128)
-        );
         greyln!("connecting to RPC: {}", &cfg.common_cfg.endpoint.lavender());
     }
 
